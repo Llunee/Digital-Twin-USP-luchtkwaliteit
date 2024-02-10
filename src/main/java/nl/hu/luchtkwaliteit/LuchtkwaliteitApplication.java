@@ -10,9 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 @SpringBootApplication
 @RestController
@@ -80,15 +78,15 @@ public class LuchtkwaliteitApplication {
 				if (observation == -1.0) {
 					System.out.println("This sensor does not have any observations!");
 					break;
-				}
-				else {
+				} else if (observation == -999.0 || observation == -99.9) {
+					System.out.println(value.path("name").toString() + ", the API gave a response that seems invalid.");
+				} else {
 					System.out.println(value.path("name").toString() + ", unit of measurement: "
 							+ value.path("unitOfMeasurement").path("symbol").toString()
-							+ ", observation at index 0: "
-							+ observation);
+							+ ", most recent observation: "
+							+ observation
+					);
 				}
-
-
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -103,11 +101,29 @@ public class LuchtkwaliteitApplication {
 		ObjectMapper objectMapper = new ObjectMapper();
 		try {
 			JsonNode datastreamJson = objectMapper.readTree(responseBody);
-			JsonNode firstValue = datastreamJson.path("value").get(0);
-			if (firstValue == null) {
-				return -1.0;
+			JsonNode allValues = datastreamJson.path("value");
+
+			ArrayList<String> observationTimes = new ArrayList<>();
+			for (JsonNode value : allValues) {
+				String valueTime = value.path("phenomenonTime").toString().replace("\"", "");
+				observationTimes.add(valueTime);
 			}
-			return firstValue.path("result").asDouble();
+
+			observationTimes.sort(Collections.reverseOrder());
+
+			String mostRecentTime = observationTimes.get(0);
+			JsonNode mostRecentObservation = null;
+
+			for (JsonNode value : allValues) {
+				if (value.path("phenomenonTime")
+						.toString().replace("\"", "")
+						.equals(mostRecentTime)) {
+					mostRecentObservation = value;
+				}
+			}
+
+			return mostRecentObservation.path("result").asDouble();
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
