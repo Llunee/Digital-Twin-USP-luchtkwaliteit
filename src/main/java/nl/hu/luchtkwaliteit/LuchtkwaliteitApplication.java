@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 @SpringBootApplication
 @RestController
 public class LuchtkwaliteitApplication {
@@ -42,12 +46,17 @@ public class LuchtkwaliteitApplication {
 
 			JsonNode allValues = jsonNode.path("value");
 
-			for (JsonNode value : allValues) {
-				System.out.println(value.path("@iot.id").asInt());
-				String datastreamsUrl = value.path("Datastreams@iot.navigationLink").toString();
-				String correctUrl = datastreamsUrl.replace("\"", "");
-				getDatastreams(correctUrl);
+			String[] givenSensorNames = {"USP_pu002", "USP_pu009", "USP_pu016", "SSK_USP01", "SSK_USP02", "SSK_USP03",
+											"SSK_USP04", "SSK_USP05", "SSK_USP06"};
+			List<String> sensorList = Arrays.asList(givenSensorNames);
 
+			for (JsonNode value : allValues) {
+				if (sensorList.contains(value.path("name").toString())) {
+					System.out.println(value.path("@iot.id").asInt() + ", name: " + value.path("name").toString());
+					String datastreamsUrl = value.path("Datastreams@iot.navigationLink").toString();
+					String correctUrl = datastreamsUrl.replace("\"", "");
+					getDatastreams(correctUrl);
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -65,11 +74,21 @@ public class LuchtkwaliteitApplication {
 			JsonNode allValues = datastreamJson.path("value");
 
 			for (JsonNode value : allValues) {
-				System.out.println(value.path("name").toString() + ", unit of measurement: "
-						+ value.path("unitOfMeasurement").path("symbol").toString()
-						+ ", observation at index 0: "
-						+ this.getObservations(value.path("Observations@iot.navigationLink").toString()
-								.replace("\"", "")));
+				double observation = this.getObservations(value.path("Observations@iot.navigationLink").toString()
+						.replace("\"", ""));
+
+				if (observation == -1.0) {
+					System.out.println("This sensor does not have any observations!");
+					break;
+				}
+//				else {
+//					System.out.println(value.path("name").toString() + ", unit of measurement: "
+//							+ value.path("unitOfMeasurement").path("symbol").toString()
+//							+ ", observation at index 0: "
+//							+ observation);
+//				}
+
+
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -92,6 +111,6 @@ public class LuchtkwaliteitApplication {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return -1;
+		return -1.0;
 	}
 }
