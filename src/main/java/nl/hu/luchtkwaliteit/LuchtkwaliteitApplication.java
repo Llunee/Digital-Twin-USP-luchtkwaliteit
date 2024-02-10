@@ -47,11 +47,11 @@ public class LuchtkwaliteitApplication {
 			JsonNode allValues = jsonNode.path("value");
 
 			String[] givenSensorNames = {"USP_pu002", "USP_pu009", "USP_pu016", "SSK_USP01", "SSK_USP02", "SSK_USP03",
-											"SSK_USP04", "SSK_USP05", "SSK_USP06"};
+					"SSK_USP04", "SSK_USP05", "SSK_USP06"};
 			List<String> sensorList = Arrays.asList(givenSensorNames);
 
 			for (JsonNode value : allValues) {
-				if (sensorList.contains(value.path("name").toString())) {
+				if (sensorList.contains(value.path("name").toString().replace("\"", ""))) {
 					System.out.println(value.path("@iot.id").asInt() + ", name: " + value.path("name").toString());
 					String datastreamsUrl = value.path("Datastreams@iot.navigationLink").toString();
 					String correctUrl = datastreamsUrl.replace("\"", "");
@@ -81,12 +81,12 @@ public class LuchtkwaliteitApplication {
 					System.out.println("This sensor does not have any observations!");
 					break;
 				}
-//				else {
-//					System.out.println(value.path("name").toString() + ", unit of measurement: "
-//							+ value.path("unitOfMeasurement").path("symbol").toString()
-//							+ ", observation at index 0: "
-//							+ observation);
-//				}
+				else {
+					System.out.println(value.path("name").toString() + ", unit of measurement: "
+							+ value.path("unitOfMeasurement").path("symbol").toString()
+							+ ", observation at index 0: "
+							+ observation);
+				}
 
 
 			}
