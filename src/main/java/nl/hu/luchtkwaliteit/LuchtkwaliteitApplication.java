@@ -2,8 +2,13 @@ package nl.hu.luchtkwaliteit;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import nl.hu.luchtkwaliteit.application.DatastreamDTO;
+import nl.hu.luchtkwaliteit.application.MeasurementDTO;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,14 +39,15 @@ public class LuchtkwaliteitApplication {
 	}
 
 	@GetMapping("/measurements")
-	public void getMeasurements() {
+	public ResponseEntity<String> getMeasurements() {
+		List<MeasurementDTO> measurementsList = new ArrayList<>();
+
 		ResponseEntity<String> uspData = this.getThings();
 		String responseBody = uspData.getBody();
 
 		ObjectMapper objectMapper = new ObjectMapper();
 		try {
 			JsonNode jsonNode = objectMapper.readTree(responseBody);
-
 			JsonNode allValues = jsonNode.path("value");
 
 			String[] givenSensorNames = {"USP_pu002", "USP_pu009", "USP_pu016", "SSK_USP01", "SSK_USP02", "SSK_USP03",
@@ -49,19 +55,36 @@ public class LuchtkwaliteitApplication {
 			List<String> sensorList = Arrays.asList(givenSensorNames);
 
 			for (JsonNode value : allValues) {
-				if (sensorList.contains(value.path("name").toString().replace("\"", ""))) {
-					System.out.println(value.path("@iot.id").asInt() + ", name: " + value.path("name").toString());
-					String datastreamsUrl = value.path("Datastreams@iot.navigationLink").toString();
+				if (sensorList.contains(value.path("name").asText())) {
+					MeasurementDTO measurementDTO = new MeasurementDTO();
+					measurementDTO.setId(value.path("@iot.id").asInt());
+					measurementDTO.setName(value.path("name").asText());
+
+					String datastreamsUrl = value.path("Datastreams@iot.navigationLink").asText();
 					String correctUrl = datastreamsUrl.replace("\"", "");
-					getDatastreams(correctUrl);
+					measurementDTO.setDatastreams(getDatastreams(correctUrl));
+
+					measurementsList.add(measurementDTO);
 				}
 			}
+
+			// Serialize the list of measurements into JSON
+			String jsonResponse = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(measurementsList);
+
+			HttpHeaders headers = new HttpHeaders();
+			headers.setContentType(MediaType.APPLICATION_JSON);
+
+			return new ResponseEntity<>(jsonResponse, headers, HttpStatus.OK);
+
 		} catch (Exception e) {
 			e.printStackTrace();
+			return new ResponseEntity<>("Error occurred while processing data.", HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 	}
 
-	private void getDatastreams(String url) {
+	private List<DatastreamDTO> getDatastreams(String url) {
+		List<DatastreamDTO> datastreamsList = new ArrayList<>();
+
 		RestTemplate datastreamsForValue = new RestTemplate();
 		ResponseEntity<String> data = datastreamsForValue.getForEntity(url, String.class);
 		String responseBody = data.getBody();
@@ -72,24 +95,22 @@ public class LuchtkwaliteitApplication {
 			JsonNode allValues = datastreamJson.path("value");
 
 			for (JsonNode value : allValues) {
-				double observation = this.getObservations(value.path("Observations@iot.navigationLink").toString()
+				double observation = this.getObservations(value.path("Observations@iot.navigationLink").asText()
 						.replace("\"", ""));
 
-				if (observation == -1.0) {
-					System.out.println("This sensor does not have any observations!");
-					break;
-				} else if (observation == -999.0 || observation == -99.9) {
-					System.out.println(value.path("name").toString() + ", the API gave a response that seems invalid.");
-				} else {
-					System.out.println(value.path("name").toString() + ", unit of measurement: "
-							+ value.path("unitOfMeasurement").path("symbol").toString()
-							+ ", most recent observation: "
-							+ observation
-					);
-				}
+				DatastreamDTO datastreamDTO = new DatastreamDTO();
+				datastreamDTO.setName(value.path("name").asText());
+				datastreamDTO.setUnitOfMeasurement(value.path("unitOfMeasurement").path("symbol").asText());
+				datastreamDTO.setMostRecentObservation(observation);
+
+				datastreamsList.add(datastreamDTO);
 			}
+
+			return datastreamsList;
+
 		} catch (Exception e) {
 			e.printStackTrace();
+			return Collections.emptyList();
 		}
 	}
 
@@ -105,7 +126,7 @@ public class LuchtkwaliteitApplication {
 
 			ArrayList<String> observationTimes = new ArrayList<>();
 			for (JsonNode value : allValues) {
-				String valueTime = value.path("phenomenonTime").toString().replace("\"", "");
+				String valueTime = value.path("phenomenonTime").asText().replace("\"", "");
 				observationTimes.add(valueTime);
 			}
 
@@ -116,7 +137,7 @@ public class LuchtkwaliteitApplication {
 
 			for (JsonNode value : allValues) {
 				if (value.path("phenomenonTime")
-						.toString().replace("\"", "")
+						.asText().replace("\"", "")
 						.equals(mostRecentTime)) {
 					mostRecentObservation = value;
 				}
@@ -126,7 +147,7 @@ public class LuchtkwaliteitApplication {
 
 		} catch (Exception e) {
 			e.printStackTrace();
+			return -1.0;
 		}
-		return -1.0;
 	}
 }
