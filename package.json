@@ -1,0 +1,7 @@
+{
+  "name": "luchtkwaliteit",
+  "version": "1.0.0",
+  "dependencies": {
+    "@vaadin/router": "^1.7.5"
+  }
+}
