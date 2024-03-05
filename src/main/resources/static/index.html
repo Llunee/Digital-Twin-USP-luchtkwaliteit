@@ -1,13 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>Luchtkwaliteit API</title>
-        <script type="module" src="https://cdn.skypack.dev/lit"></script>
-        <script type="module" src="./dashboard/dashboard.js"></script>
-    </head>
-    <body>
-        <h1>Hello!</h1>
-        <dashboard></dashboard>
-    </body>
+<head>
+    <meta charset="UTF-8">
+    <title>Luchtkwaliteit API</title>
+    <script type="module" src="./dashboard/dashboard-service.js"></script>
+    <style>
+        #app {
+            font-family: sans-serif;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.625rem;
+        }
+
+        .sensor {
+            border: 0.2rem solid black;
+            border-radius: 1rem;
+            padding: 0.625rem;
+            margin: 0.625rem;
+            width: 20rem;
+        }
+
+        .datastream {
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>USP sensoren</h1>
+
+    <button type="button" onclick="showMeasurements()" id="fetchButton">Fetch Data</button>
+    <div id="app"></div>
+
+    <script>
+        async function getMeasurements() {
+            const url = "/measurements";
+
+            console.log("going to fetch!");
+            return fetch(url)
+                .then(response => response.json())
+                .catch(error => {
+                    console.log(error);
+                });
+        }
+
+        async function showMeasurements() {
+            const fetchButton = document.getElementById("fetchButton");
+            fetchButton.disabled = true; // Disable the button
+
+            const jsonData = await getMeasurements();
+            const appDiv = document.getElementById("app");
+            appDiv.innerHTML = ''; // Clear previous content
+
+            jsonData.forEach(sensor => {
+                const sensorDiv = document.createElement("div");
+                sensorDiv.classList.add("sensor");
+                sensorDiv.innerHTML = `<h2>${sensor.name}</h2>`;
+
+                sensor.datastreams.forEach(datastream => {
+                    const datastreamDiv = document.createElement("div");
+                    datastreamDiv.classList.add("datastream");
+                    datastreamDiv.innerHTML = `
+                            <p>${datastream.name}: ${datastream.mostRecentObservation} ${datastream.unitOfMeasurement}</p>
+                        `;
+                    sensorDiv.appendChild(datastreamDiv);
+                });
+
+                appDiv.appendChild(sensorDiv);
+            });
+
+            fetchButton.disabled = false; // Enable the button after data is loaded
+        }
+    </script>
+
+</body>
 </html>
