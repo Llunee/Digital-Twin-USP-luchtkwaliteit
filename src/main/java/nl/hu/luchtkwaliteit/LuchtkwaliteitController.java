@@ -13,10 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 @RestController
 public class LuchtkwaliteitController {
@@ -45,7 +42,7 @@ public class LuchtkwaliteitController {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
             JsonNode allValues = jsonNode.path("value");
 
-            String[] givenSensorNames = {"USP_pu002", "USP_pu009", "USP_pu016", "SSK_USP01", "SSK_USP02", "SSK_USP03",
+            String[] givenSensorNames = {"USP_pu002", "USP_pu009", "USP_pu016", "SSK_USP01", "SSK_USP02",
                     "SSK_USP04", "SSK_USP05", "SSK_USP06"};
             List<String> sensorList = Arrays.asList(givenSensorNames);
 
@@ -88,13 +85,22 @@ public class LuchtkwaliteitController {
         try {
             JsonNode datastreamJson = objectMapper.readTree(responseBody);
             JsonNode allValues = datastreamJson.path("value");
+            HashMap<String, String> names = this.createNamesFromUnits();
 
             for (JsonNode value : allValues) {
                 double observation = this.getObservations(value.path("Observations@iot.navigationLink").asText()
                         .replace("\"", ""));
 
                 DatastreamDTO datastreamDTO = new DatastreamDTO();
-                datastreamDTO.setName(value.path("name").asText());
+
+                for (int i = 0; i < names.keySet().size(); i++) {
+                    String currentKey = names.keySet().toArray()[i].toString();
+                    if (value.path("name").asText().contains(currentKey)) {
+                        String nameValue = names.get(currentKey);
+                        datastreamDTO.setName(nameValue);
+                    }
+                }
+
                 datastreamDTO.setUnitOfMeasurement(value.path("unitOfMeasurement").path("symbol").asText());
                 datastreamDTO.setMostRecentObservation(observation);
 
@@ -144,5 +150,19 @@ public class LuchtkwaliteitController {
             e.printStackTrace();
             return -1.0;
         }
+    }
+
+    private HashMap<String, String> createNamesFromUnits() {
+        HashMap<String, String> namesAndUnits = new HashMap<>();
+        namesAndUnits.put("pres", "pressure");
+        namesAndUnits.put("rh", "relative humidity");
+        namesAndUnits.put("temp", "temperature");
+        namesAndUnits.put("no2", "NO2");
+        namesAndUnits.put("pm10_kal", "Particle matter (PM1,0) kal");
+        namesAndUnits.put("pm10", "Particle matter (PM1,0)");
+        namesAndUnits.put("pm25_kal", "Particle matter (PM2,5) kal");
+        namesAndUnits.put("pm25", "Particle matter (PM2,5)");
+
+        return namesAndUnits;
     }
 }
