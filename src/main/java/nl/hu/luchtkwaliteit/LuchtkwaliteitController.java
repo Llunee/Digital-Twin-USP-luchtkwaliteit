@@ -158,9 +158,9 @@ public class LuchtkwaliteitController {
         namesAndUnits.put("rh", "relative humidity");
         namesAndUnits.put("temp", "temperature");
         namesAndUnits.put("no2", "NO2");
-        namesAndUnits.put("pm10_kal", "Particle matter (PM1,0) kal");
+        namesAndUnits.put("pm10_kal", "Particle matter (PM1,0) calibrated");
         namesAndUnits.put("pm10", "Particle matter (PM1,0)");
-        namesAndUnits.put("pm25_kal", "Particle matter (PM2,5) kal");
+        namesAndUnits.put("pm25_kal", "Particle matter (PM2,5) calibrated");
         namesAndUnits.put("pm25", "Particle matter (PM2,5)");
 
         return namesAndUnits;
