@@ -178,6 +178,9 @@ public class LuchtkwaliteitController {
                 for (int i = 0; i < names.keySet().size(); i++) {
                     String currentKey = names.keySet().toArray()[i].toString();
                     if (value.path("name").asText().contains(currentKey)) {
+                        if (value.path("name").asText().contains("kal") && !currentKey.contains("kal")) {
+                            continue;
+                        }
                         String nameValue = names.get(currentKey);
                         datastreamDTO.setName(nameValue);
                     }
