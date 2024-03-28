@@ -6,6 +6,7 @@ public class MeasurementDTO {
     private int id;
     private String name;
     private List<DatastreamDTO> datastreams;
+    private double longitude, latitude;
 
     public int getId() {
         return id;
@@ -29,6 +30,22 @@ public class MeasurementDTO {
 
     public void setDatastreams(List<DatastreamDTO> datastreams) {
         this.datastreams = datastreams;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
     }
 }
 
