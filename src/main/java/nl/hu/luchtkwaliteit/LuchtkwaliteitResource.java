@@ -1,38 +1,59 @@
-package nl.hu.luchtkwaliteit.presentation;
+package nl.hu.luchtkwaliteit;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import nl.hu.luchtkwaliteit.application.DatastreamDTO;
 import nl.hu.luchtkwaliteit.application.MeasurementDTO;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
 
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 
-@RestController
-public class LuchtkwaliteitController {
-    @GetMapping("/things")
-    public ResponseEntity<String> getThings() {
-        String apiUrl = "https://api-samenmeten.rivm.nl/v1.0/Things?$filter=contains(name,'USP')";
-        RestTemplate restTemplate = new RestTemplate();
+@Path("luchtkwaliteit")
+public class LuchtkwaliteitResource {
 
-        return restTemplate.getForEntity(apiUrl, String.class);
+    @GET
+    @Path("geojson")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getGeoJSONFile() {
+        File file = new File("geoJsonFiles/geoJSONData.json");
+        if (!file.exists()) {
+            return Response.status(Response.Status.NOT_FOUND).entity("GeoJSON file not found").build();
+        }
+
+        try (FileReader fileReader = new FileReader(file);
+            BufferedReader bufferedReader = new BufferedReader(fileReader)) {
+            StringBuilder stringBuilder = new StringBuilder();
+            String line;
+            bufferedReader.readLine();
+            while ((line = bufferedReader.readLine()) != null) {
+                line = line.strip();
+                line = line.replace("!", "");
+                stringBuilder.append(line);
+            }
+            return Response.ok(stringBuilder.toString()).build();
+        } catch (IOException e) {
+            e.printStackTrace();
+            return Response.serverError().entity("Error occurred while reading GeoJSON file").build();
+        }
     }
 
-    @GetMapping("/geojson")
-    public ResponseEntity<String> getGeoJSON() throws JsonProcessingException {
-        ResponseEntity<String> uspData = this.getThings();
-        String responseBody = uspData.getBody();
+    public String getGeoJSON() {
+        String responseBody = getThings();
 
         ObjectMapper objectMapper = new ObjectMapper();
         List<MeasurementDTO> measurementsList = new ArrayList<>();
+
         try {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
             JsonNode allValues = jsonNode.path("value");
@@ -51,9 +72,7 @@ public class LuchtkwaliteitController {
                             .asText()
                             .replace("\"", "");
 
-                    RestTemplate latAndLong = new RestTemplate();
-                    ResponseEntity<String> data = latAndLong.getForEntity(locationUrl, String.class);
-                    String locationResponseBody = data.getBody();
+                    String locationResponseBody = getClientResponse(locationUrl);
                     JsonNode locationJson = objectMapper.readTree(locationResponseBody);
                     JsonNode location = locationJson.path("value").get(0);
 
@@ -85,7 +104,6 @@ public class LuchtkwaliteitController {
 
                 Map<String, Object> properties = new HashMap<>();
                 properties.put("name", measurement.getName());
-                System.out.println(measurement.getDatastreams());
                 for (DatastreamDTO datastream : measurement.getDatastreams()) {
                     properties.put(datastream.getName(), datastream.getMostRecentObservation());
                 }
@@ -98,26 +116,20 @@ public class LuchtkwaliteitController {
             geoJSON.put("type", "FeatureCollection");
             geoJSON.put("features", features);
 
-            // Serialize the list of measurements into JSON
-            String jsonResponse = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(geoJSON);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            return new ResponseEntity<>(jsonResponse, headers, HttpStatus.OK);
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(geoJSON);
         } catch (Exception e) {
             e.printStackTrace();
-            throw e;
+            return null;
         }
-
     }
 
-    @GetMapping("/measurements")
-    public ResponseEntity<String> getMeasurements() {
+    @GET
+    @Path("measurements")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response getMeasurements() {
         List<MeasurementDTO> measurementsList = new ArrayList<>();
 
-        ResponseEntity<String> uspData = this.getThings();
-        String responseBody = uspData.getBody();
+        String responseBody = getThings();
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {
@@ -145,32 +157,32 @@ public class LuchtkwaliteitController {
             // Serialize the list of measurements into JSON
             String jsonResponse = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(measurementsList);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            return new ResponseEntity<>(jsonResponse, headers, HttpStatus.OK);
+            return Response.ok(jsonResponse).build();
 
         } catch (Exception e) {
             e.printStackTrace();
-            return new ResponseEntity<>("Error occurred while processing data.", HttpStatus.INTERNAL_SERVER_ERROR);
+            return Response.serverError().entity("Error occurred while processing data.").build();
         }
+    }
+
+    private String getThings() {
+        String apiUrl = "https://api-samenmeten.rivm.nl/v1.0/Things?$filter=contains(name,'USP')";
+        return getClientResponse(apiUrl);
     }
 
     private List<DatastreamDTO> getDatastreams(String url) {
         List<DatastreamDTO> datastreamsList = new ArrayList<>();
 
-        RestTemplate datastreamsForValue = new RestTemplate();
-        ResponseEntity<String> data = datastreamsForValue.getForEntity(url, String.class);
-        String responseBody = data.getBody();
+        String responseBody = getClientResponse(url);
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             JsonNode datastreamJson = objectMapper.readTree(responseBody);
             JsonNode allValues = datastreamJson.path("value");
-            HashMap<String, String> names = this.createNamesFromUnits();
+            HashMap<String, String> names = createNamesFromUnits();
 
             for (JsonNode value : allValues) {
-                double observation = this.getObservations(value.path("Observations@iot.navigationLink").asText()
+                double observation = getObservations(value.path("Observations@iot.navigationLink").asText()
                         .replace("\"", ""));
 
                 DatastreamDTO datastreamDTO = new DatastreamDTO();
@@ -201,9 +213,7 @@ public class LuchtkwaliteitController {
     }
 
     private double getObservations(String url) {
-        RestTemplate datastreamsForValue = new RestTemplate();
-        ResponseEntity<String> data = datastreamsForValue.getForEntity(url, String.class);
-        String responseBody = data.getBody();
+        String responseBody = getClientResponse(url);
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {
@@ -249,5 +259,11 @@ public class LuchtkwaliteitController {
         namesAndUnits.put("pm25", "Particle matter (PM2,5)");
 
         return namesAndUnits;
+    }
+
+    private String getClientResponse(String url) {
+        Client client = ClientBuilder.newClient();
+        WebTarget target = client.target(url);
+        return target.request().get(String.class);
     }
 }
