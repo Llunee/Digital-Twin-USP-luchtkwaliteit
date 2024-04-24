@@ -35,7 +35,6 @@ public class LuchtkwaliteitResource {
             BufferedReader bufferedReader = new BufferedReader(fileReader)) {
             StringBuilder stringBuilder = new StringBuilder();
             String line;
-            bufferedReader.readLine();
             while ((line = bufferedReader.readLine()) != null) {
                 line = line.strip();
                 stringBuilder.append(line);
@@ -63,7 +62,7 @@ public class LuchtkwaliteitResource {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
             JsonNode allValues = jsonNode.path("value");
 
-            String[] givenSensorNames = {"SSK_USP01", "SSK_USP02",
+            String[] givenSensorNames = {"SSK_USP01", "SSK_USP02", "SSK_USP03",
                     "SSK_USP04", "SSK_USP05", "SSK_USP06"};
             List<String> sensorList = Arrays.asList(givenSensorNames);
 
