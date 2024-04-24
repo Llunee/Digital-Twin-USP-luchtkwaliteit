@@ -38,9 +38,14 @@ public class LuchtkwaliteitResource {
             bufferedReader.readLine();
             while ((line = bufferedReader.readLine()) != null) {
                 line = line.strip();
-                line = line.replace("!", "");
                 stringBuilder.append(line);
             }
+
+            int indexOfOpeningBrace = stringBuilder.indexOf("{");
+            if (indexOfOpeningBrace != -1) {
+                stringBuilder.delete(0, indexOfOpeningBrace); // Remove substring before "{"
+            }
+
             return Response.ok(stringBuilder.toString()).build();
         } catch (IOException e) {
             e.printStackTrace();
@@ -58,7 +63,7 @@ public class LuchtkwaliteitResource {
             JsonNode jsonNode = objectMapper.readTree(responseBody);
             JsonNode allValues = jsonNode.path("value");
 
-            String[] givenSensorNames = {"USP_pu002", "USP_pu009", "USP_pu016", "SSK_USP01", "SSK_USP02",
+            String[] givenSensorNames = {"SSK_USP01", "SSK_USP02",
                     "SSK_USP04", "SSK_USP05", "SSK_USP06"};
             List<String> sensorList = Arrays.asList(givenSensorNames);
 
