@@ -15,6 +15,7 @@ public class MyServletContextListener implements ServletContextListener {
         this.hourlyTask();
     }
 
+    // make sure the GeoJSON is retrieved hourly (as long as it is up)
     public void hourlyTask() {
         GeoJSONGenerator generator = new GeoJSONGenerator();
 

@@ -10,19 +10,19 @@ public class GeoJSONGenerator {
     public void generateGeoJSONFile() {
         try {
             String geoJSONData = generateGeoJSON();
-            //vind of maak de file
+            // find or create the file
             Path jsonPath = Path.of("/geoJsonFiles/geoJSONData.json");
             Path pad = Path.of("/geoJsonFiles");
             if (!Files.exists(pad)) {
                 Files.createDirectory(pad);
             }
-            //open de streams
+            // open the streams
             OutputStream os = Files.newOutputStream(jsonPath);
             ObjectOutputStream oos = new ObjectOutputStream(os);
 
             oos.writeObject(geoJSONData);
 
-            //schrijf en sluit de stream
+            // write and close streams
             oos.flush();
             oos.close();
         } catch (IOException e) {
